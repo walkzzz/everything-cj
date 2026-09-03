@@ -1,0 +1,13 @@
+#!/bin/bash
+# Everything-CJ v1.0.0
+# 仓颉版 Everything 搜索工具
+#
+# 注意: 这是占位符文件
+# 请使用 cjpm build --release 构建实际二进制
+#
+# 构建方法:
+#   1. 安装 Cangjie SDK: https://cangjie-lang.cn/download
+#   2. 安装 cjpm: cjc install cjpm
+#   3. 构建: cjpm build --release
+#
+# 项目地址: https://gitcode.com/hw_aishell_projects/everything_cli

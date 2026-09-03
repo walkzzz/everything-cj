@@ -1,0 +1,12 @@
+#!/bin/bash
+# ES.exe - Everything-CJ CLI 工具
+#
+# 用法: es.exe [选项] <搜索词>
+#
+# 示例:
+#   es.exe report
+#   es.exe ext:pdf report
+#   es.exe size:>10mb
+#
+# 构建方法:
+#   cjpm build --release
