@@ -1,0 +1,29 @@
+# 构建产物
+target/
+release/*.tar.gz
+release/*.zip
+release/*.sha256
+
+# 仓颉 SDK
+cangjie-sdk-linux-aarch64-1.1.3.tar.gz
+cangjie/
+cangjie-stdx*/
+stdx-sdk/
+
+# IDE & 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.bak
+*.log
+.cache/
