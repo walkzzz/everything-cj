@@ -1,6 +1,6 @@
 name: Build macOS (GitCode)
 
-on:
+"on":
   push:
     tags:
       - 'v*'
