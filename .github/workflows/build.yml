@@ -12,14 +12,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux x64 — 用 linux-x64 SDK 原生编译
           - os: ubuntu-22.04
             target: linux-x64
             sdk_file: cangjie-sdk-linux-x64-1.1.3.tar.gz
-            sdk_url: "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-1.1.3.tar.gz&objectKey=6a1934a821f5a8178d6fd22d"
+            sdk_url: "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-1.1.3.tar.gz&objectKey=6a19349d21f5a8178d6fd22b"
             artifact_name: everything-cj-linux-x64
             cjc_target: ''
             lib_path: 'linux_x86_64_cjnative'
 
+          # macOS ARM64 (Apple Silicon) — 用 mac-aarch64 SDK 原生编译
           - os: macos-14
             target: macos-aarch64
             sdk_file: cangjie-sdk-mac-aarch64-1.1.3.tar.gz
@@ -28,7 +30,8 @@ jobs:
             cjc_target: ''
             lib_path: 'darwin_aarch64_cjnative'
 
-          - os: macos-13
+          # macOS x64 (Intel) — 用 mac-aarch64 SDK 交叉编译 x86_64
+          - os: macos-14
             target: macos-x64
             sdk_file: cangjie-sdk-mac-aarch64-1.1.3.tar.gz
             sdk_url: "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-mac-aarch64-1.1.3.tar.gz&objectKey=6a19312721f5a8178d6fd225"
@@ -36,13 +39,14 @@ jobs:
             cjc_target: '--target x86_64-apple-darwin'
             lib_path: 'darwin_aarch64_cjnative'
 
+          # Windows x64 — 在 Linux x64 上交叉编译
           - os: ubuntu-22.04
             target: windows-x64
-            sdk_file: cangjie-sdk-linux-aarch64-1.1.3.tar.gz
-            sdk_url: "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-aarch64-1.1.3.tar.gz&objectKey=6a19350321f5a8178d6fd22c"
+            sdk_file: cangjie-sdk-linux-x64-1.1.3.tar.gz
+            sdk_url: "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-1.1.3.tar.gz&objectKey=6a19349d21f5a8178d6fd22b"
             artifact_name: everything-cj-windows-x64.exe
             cjc_target: '--target x86_64-pc-windows-gnu'
-            lib_path: 'linux_aarch64_cjnative'
+            lib_path: 'linux_x86_64_cjnative'
 
     runs-on: ${{ matrix.os }}
     name: Build ${{ matrix.target }}
@@ -53,9 +57,11 @@ jobs:
 
       - name: Download Cangjie SDK
         run: |
+          echo "=== 下载 ${{ matrix.sdk_file }} ==="
           wget --no-check-certificate \
             "${{ matrix.sdk_url }}" \
             -O ${{ matrix.sdk_file }}
+          echo "=== 解压 ==="
           tar -zxf ${{ matrix.sdk_file }}
 
       - name: Setup environment
@@ -65,12 +71,12 @@ jobs:
           echo "$SDK_DIR/bin" >> $GITHUB_PATH
           echo "$SDK_DIR/tools/bin" >> $GITHUB_PATH
 
-          # Linux LD_LIBRARY_PATH
+          # Linux
           if [ -d "$SDK_DIR/runtime/lib/${{ matrix.lib_path }}" ]; then
-            echo "LD_LIBRARY_PATH=$SDK_DIR/runtime/lib/${{ matrix.lib_path }}:$SDK_DIR/lib/${{ matrix.lib_path }}:${{ env.LD_LIBRARY_PATH || '' }}" >> $GITHUB_ENV
+            echo "LD_LIBRARY_PATH=$SDK_DIR/runtime/lib/${{ matrix.lib_path }}:$SDK_DIR/lib/${{ matrix.lib_path }}" >> $GITHUB_ENV
           fi
 
-          # macOS DYLD_LIBRARY_PATH
+          # macOS
           if [ -d "$SDK_DIR/runtime/lib/darwin_aarch64_cjnative" ]; then
             echo "DYLD_LIBRARY_PATH=$SDK_DIR/runtime/lib/darwin_aarch64_cjnative:$SDK_DIR/lib/darwin_aarch64_cjnative" >> $GITHUB_ENV
           fi
@@ -83,18 +89,7 @@ jobs:
       - name: Build
         run: |
           echo "=== 构建 ${{ matrix.target }} ==="
-          mkdir -p build_output
-          cjc src/main.cj ${{ matrix.cjc_target }} -s -o build_output/main
-
-          # 找到生成的可执行文件
-          if [ -f build_output/main ]; then
-            cp build_output/main ${{ matrix.artifact_name }}
-          elif [ -f main ]; then
-            cp main ${{ matrix.artifact_name }}
-          else
-            find . -name "main" -type f -executable | head -5
-            exit 1
-          fi
+          cjc src/main.cj ${{ matrix.cjc_target }} -s -o ${{ matrix.artifact_name }}
 
           echo "=== 验证 ==="
           file ${{ matrix.artifact_name }}
@@ -143,7 +138,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/everything-cj-*
+            artifacts/**/everything-cj-*.tar.gz
+            artifacts/**/everything-cj-*.sha256
           draft: false
           generate_release_notes: true
           body: |
@@ -152,13 +148,13 @@ jobs:
             仓颉版 Everything 搜索工具 - 毫秒级全盘文件定位
 
             ### 下载
-            | 平台 | 文件 |
-            |------|------|
-            | Linux x64 | `everything-cj-v1.0.0-linux-x64.tar.gz` |
-            | macOS ARM64 | `everything-cj-v1.0.0-macos-aarch64.tar.gz` |
-            | macOS x64 | `everything-cj-v1.0.0-macos-x64.tar.gz` |
-            | Windows x64 | `everything-cj-v1.0.0-windows-x64.tar.gz` |
+            | 平台 | 文件 | 架构 |
+            |------|------|------|
+            | Linux | `everything-cj-v1.0.0-linux-x64.tar.gz` | x86_64 |
+            | macOS | `everything-cj-v1.0.0-macos-aarch64.tar.gz` | ARM64 (Apple Silicon) |
+            | macOS | `everything-cj-v1.0.0-macos-x64.tar.gz` | x86_64 (Intel) |
+            | Windows | `everything-cj-v1.0.0-windows-x64.tar.gz` | x86_64 |
 
             ### 构建环境
             - Cangjie Compiler 1.1.3 (cjnative)
-            - GitHub Actions 多平台构建
+            - GitHub Actions 多平台并行构建
