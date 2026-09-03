@@ -97,6 +97,42 @@ jobs:
             ./${{ matrix.artifact_name }} || true
           fi
 
+      # ── Windows: 直接提供 .exe ──
+      - name: Package Windows .exe
+        if: matrix.target == 'windows-x64'
+        run: |
+          echo "=== 直接使用 .exe ==="
+          ls -lh ${{ matrix.artifact_name }}
+          sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+
+      # ── macOS: 创建 .dmg ──
+      - name: Create macOS .dmg
+        if: runner.os == 'macOS'
+        run: |
+          echo "=== 创建 DMG ==="
+          # 创建临时目录结构
+          mkdir -p dmg_content
+          cp ${{ matrix.artifact_name }} dmg_content/
+
+          # 创建 Applications 快捷方式（拖拽安装）
+          ln -s /Applications dmg_content/Applications
+
+          # 创建 DMG
+          DMG_NAME=everything-cj-v1.0.0-${{ matrix.target }}.dmg
+          hdiutil create \
+            -volname "Everything-CJ" \
+            -srcfolder dmg_content \
+            -ov \
+            -format UDZO \
+            "$DMG_NAME"
+
+          echo "=== 验证 DMG ==="
+          ls -lh "$DMG_NAME"
+          hdiutil verify "$DMG_NAME"
+
+          # SHA256
+          shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
+
       - name: Create tarball
         run: |
           tar -czf everything-cj-v1.0.0-${{ matrix.target }}.tar.gz ${{ matrix.artifact_name }}
@@ -112,8 +148,11 @@ jobs:
           name: everything-cj-${{ matrix.target }}
           path: |
             ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256
             everything-cj-v1.0.0-${{ matrix.target }}.tar.gz
             everything-cj-v1.0.0-${{ matrix.target }}.tar.gz.sha256
+            everything-cj-v1.0.0-${{ matrix.target }}.dmg
+            everything-cj-v1.0.0-${{ matrix.target }}.dmg.sha256
 
   release:
     needs: build
@@ -134,7 +173,11 @@ jobs:
         with:
           files: |
             artifacts/**/everything-cj-*.tar.gz
-            artifacts/**/everything-cj-*.sha256
+            artifacts/**/everything-cj-*.tar.gz.sha256
+            artifacts**/everything-cj-windows-x64.exe
+            artifacts**/everything-cj-windows-x64.exe.sha256
+            artifacts/**/everything-cj-*.dmg
+            artifacts/**/everything-cj-*.dmg.sha256
           draft: false
           generate_release_notes: true
           body: |
@@ -143,11 +186,11 @@ jobs:
             仓颉版 Everything 搜索工具 - 毫秒级全盘文件定位
 
             ### 下载
-            | 平台 | 文件 | 架构 |
-            |------|------|------|
-            | Linux | `everything-cj-v1.0.0-linux-x64.tar.gz` | x86_64 |
-            | macOS | `everything-cj-v1.0.0-macos-aarch64.tar.gz` | ARM64 (Apple Silicon) |
-            | Windows | `everything-cj-v1.0.0-windows-x64.tar.gz` | x86_64 |
+            | 平台 | 文件 | 架构 | 说明 |
+            |------|------|------|------|
+            | Linux | `everything-cj-v1.0.0-linux-x64.tar.gz` | x86_64 | 解压后运行 |
+            | macOS | `everything-cj-v1.0.0-macos-aarch64.dmg` | ARM64 | 双击安装，拖入 Applications |
+            | Windows | `everything-cj-windows-x64.exe` | x86_64 | 直接双击运行 |
 
             ### 构建环境
             - Cangjie Compiler 1.1.3 (cjnative)
