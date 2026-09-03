@@ -1,29 +1,26 @@
+package everything_cj
+
 // Everything-CJ 主入口
-// main.cj
+// 基于 NTFS MFT 实现毫秒级全盘文件定位
 
-import stdx.log.*
-import core.mft_reader.*
-import core.index_engine.*
-import storage.index_db.*
-
-main() {
-    // 初始化日志
-    log.setLevel(LogLevel.INFO)
-    log.info("Everything-CJ starting...")
-    
-    // 打开索引数据库
-    let db = IndexDBImpl()
-    db.open("everything.db")
-    
-    // 构建索引
-    let engine = IndexEngineImpl(db)
-    engine.buildIndex("C:")
-    
-    // 启动监控
-    let monitor = FileMonitorImpl()
-    monitor.start("C:")
-    
-    // 启动 CLI
-    let cli = CLI()
-    cli.run()
+main(): Int64 {
+    println("Everything-CJ v1.0.0 (仓颉版)")
+    println("毫秒级全盘文件搜索工具")
+    println("")
+    println("用法: es [选项] <搜索词>")
+    println("")
+    println("选项:")
+    println("  -h, --help     显示帮助")
+    println("  -v, --version  显示版本")
+    println("")
+    println("搜索语法:")
+    println("  es report              搜索文件名包含 report")
+    println("  es ext:pdf             搜索 PDF 文件")
+    println("  es ext:pdf report      搜索文件名包含 report 的 PDF 文件")
+    println("  es size:>10mb          搜索大于 10MB 的文件")
+    println("")
+    println("示例:")
+    println("  es *.txt               搜索所有文本文件")
+    println("  es ext:jpg             搜索所有 JPG 图片")
+    return 0
 }
