@@ -86,6 +86,10 @@ jobs:
               EXTRA_FLAGS="-B $SYSROOT/usr/lib -B $SYSROOT/usr/lib/system"
             fi
           fi
+          # Windows 交叉编译用 --static-std --static-libs 减少DLL依赖
+          if [ "${{ matrix.target }}" = "windows-x64" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --static-std --static-libs"
+          fi
           cjc src/main.cj ${{ matrix.cjc_target }} $EXTRA_FLAGS -s -o ${{ matrix.artifact_name }}
           file ${{ matrix.artifact_name }}
           ls -lh ${{ matrix.artifact_name }}
@@ -97,12 +101,34 @@ jobs:
             ./${{ matrix.artifact_name }} || true
           fi
 
-      # ── Windows: 直接提供 .exe ──
-      - name: Package Windows .exe
+      # ── Windows: 打包 exe + 运行时 DLL 到 zip ──
+      - name: Package Windows (exe + DLLs)
         if: matrix.target == 'windows-x64'
         run: |
-          echo "=== 直接使用 .exe ==="
-          ls -lh ${{ matrix.artifact_name }}
+          echo "=== 打包 Windows 分发包 (exe + 运行时 DLL) ==="
+          SDK_DIR="$(pwd)/cangjie"
+          DLL_DIR="$SDK_DIR/runtime/lib/windows_x86_64_cjnative"
+
+          mkdir -p win_package
+          cp ${{ matrix.artifact_name }} win_package/everything-cj.exe
+          cp "$DLL_DIR/libcangjie-runtime.dll" win_package/
+          cp "$DLL_DIR/libboundscheck.dll" win_package/
+
+          echo "=== 包内容 ==="
+          ls -lh win_package/
+
+          # 创建 zip
+          cd win_package
+          zip -r ../everything-cj-v1.0.0-windows-x64.zip .
+          cd ..
+
+          echo "=== zip 大小 ==="
+          ls -lh everything-cj-v1.0.0-windows-x64.zip
+
+          # SHA256
+          sha256sum everything-cj-v1.0.0-windows-x64.zip > everything-cj-v1.0.0-windows-x64.zip.sha256
+
+          # 同时保留单独的 exe（供想自己配DLL的用户）
           sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
 
       # ── macOS: 创建 .dmg ──
@@ -110,14 +136,10 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           echo "=== 创建 DMG ==="
-          # 创建临时目录结构
           mkdir -p dmg_content
           cp ${{ matrix.artifact_name }} dmg_content/
-
-          # 创建 Applications 快捷方式（拖拽安装）
           ln -s /Applications dmg_content/Applications
 
-          # 创建 DMG
           DMG_NAME=everything-cj-v1.0.0-${{ matrix.target }}.dmg
           hdiutil create \
             -volname "Everything-CJ" \
@@ -129,8 +151,6 @@ jobs:
           echo "=== 验证 DMG ==="
           ls -lh "$DMG_NAME"
           hdiutil verify "$DMG_NAME"
-
-          # SHA256
           shasum -a 256 "$DMG_NAME" > "$DMG_NAME.sha256"
 
       - name: Create tarball
@@ -153,6 +173,8 @@ jobs:
             everything-cj-v1.0.0-${{ matrix.target }}.tar.gz.sha256
             everything-cj-v1.0.0-${{ matrix.target }}.dmg
             everything-cj-v1.0.0-${{ matrix.target }}.dmg.sha256
+            everything-cj-v1.0.0-windows-x64.zip
+            everything-cj-v1.0.0-windows-x64.zip.sha256
 
   release:
     needs: build
@@ -176,6 +198,8 @@ jobs:
             artifacts/**/everything-cj-*.tar.gz.sha256
             artifacts/**/everything-cj-windows-x64.exe
             artifacts/**/everything-cj-windows-x64.exe.sha256
+            artifacts/**/everything-cj-v1.0.0-windows-x64.zip
+            artifacts/**/everything-cj-v1.0.0-windows-x64.zip.sha256
             artifacts/**/everything-cj-*.dmg
             artifacts/**/everything-cj-*.dmg.sha256
           draft: false
@@ -190,7 +214,13 @@ jobs:
             |------|------|------|------|
             | Linux | `everything-cj-v1.0.0-linux-x64.tar.gz` | x86_64 | 解压后运行 |
             | macOS | `everything-cj-v1.0.0-macos-aarch64.dmg` | ARM64 | 双击安装，拖入 Applications |
-            | Windows | `everything-cj-windows-x64.exe` | x86_64 | 直接双击运行 |
+            | **Windows** | `everything-cj-v1.0.0-windows-x64.zip` | x86_64 | **解压后双击 everything-cj.exe 运行** |
+            | Windows (仅exe) | `everything-cj-windows-x64.exe` | x86_64 | 需自行配置运行时 DLL |
+
+            ### Windows 用户注意
+            **请下载 `.zip` 包**，解压后双击 `everything-cj.exe` 即可运行。
+            zip 包内已包含运行时 DLL（libcangjie-runtime.dll、libboundscheck.dll）。
+            单独的 `.exe` 文件需要自行配置 Cangjie 运行时环境。
 
             ### 构建环境
             - Cangjie Compiler 1.1.3 (cjnative)
