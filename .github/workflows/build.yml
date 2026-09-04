@@ -174,8 +174,8 @@ jobs:
           files: |
             artifacts/**/everything-cj-*.tar.gz
             artifacts/**/everything-cj-*.tar.gz.sha256
-            artifacts**/everything-cj-windows-x64.exe
-            artifacts**/everything-cj-windows-x64.exe.sha256
+            artifacts/**/everything-cj-windows-x64.exe
+            artifacts/**/everything-cj-windows-x64.exe.sha256
             artifacts/**/everything-cj-*.dmg
             artifacts/**/everything-cj-*.dmg.sha256
           draft: false
