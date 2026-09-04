@@ -342,3 +342,67 @@ version: 1.0.0
 | 13 | cangjie-lang.cn 是 JS 渲染页，SDK URL 在 version.js 中 |
 | 14 | 从 .cjo 文件用 `strings` 提取 API 签名是最可靠的探索方法 |
 | 15 | 重新触发 Release: 删除远程标签 → 重新创建 → 重新推送 |
+
+
+---
+
+## 十一、Windows DLL 依赖问题（重要）
+
+### 11.1 问题现象
+
+Windows 用户双击 `everything-cj-windows-x64.exe` 报错：
+```
+由于找不到 libboundscheck.dll，无法继续执行代码
+由于找不到 libcangjie-runtime.dll，无法继续执行代码
+```
+
+### 11.2 根因
+
+Cangjie 交叉编译产出的 Windows exe **动态链接**运行时库：
+- `libcangjie-runtime.dll` — Cangjie 运行时（必需）
+- `libboundscheck.dll` — 数组越界检查（必需）
+- `msvcrt.dll` / `KERNEL32.dll` / `SHELL32.dll` — Windows 系统库（自带，不需打包）
+
+### 11.3 尝试过的方案
+
+| 方案 | 结果 | 原因 |
+|------|------|------|
+| `--static-std --static-libs` | ❌ 仍需 DLL | 只静态链接 std 库，不链接运行时 |
+| `--static` (全静态) | ❌ 编译失败 | `libcangjie-runtime.a` 有未解析符号 |
+| 打包 DLL 到 zip | ✅ 可行 | 用户解压后 exe + DLL 在同目录 |
+
+### 11.4 最终方案：zip 打包
+
+```bash
+# 1. 编译（用 --static-std --static-libs 减少依赖）
+cjc src/main.cj --target x86_64-pc-windows-gnu --static-std --static-libs -s -o app.exe
+
+# 2. 找到必需的 DLL
+DLL_DIR="$CANGJIE_HOME/runtime/lib/windows_x86_64_cjnative"
+
+# 3. 打包
+mkdir -p win_package
+cp app.exe win_package/
+cp "$DLL_DIR/libcangjie-runtime.dll" win_package/
+cp "$DLL_DIR/libboundscheck.dll" win_package/
+cd win_package && zip -r ../app-windows.zip .
+```
+
+### 11.5 DLL 大小差异
+
+| 来源 | libcangjie-runtime.dll | 说明 |
+|------|----------------------|------|
+| linux-aarch64 SDK | 23 MB | 包含调试符号 |
+| linux-x64 SDK (CI) | 1.3 MB | stripped 版本 |
+| 最终 zip | 1.4 MB | 压缩后 |
+
+**教训:** 不同架构的 SDK 中包含的 Windows DLL 大小可能不同，但功能一致。CI 用 linux-x64 SDK 产出的 DLL 更小。
+
+### 11.6 用户使用说明
+
+```
+下载 everything-cj-v1.0.0-windows-x64.zip
+→ 解压到任意目录
+→ 双击 everything-cj.exe
+→ 正常运行，无需安装 Cangjie SDK
+```
