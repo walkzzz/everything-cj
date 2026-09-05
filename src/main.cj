@@ -7,6 +7,7 @@ import std.fs.*
 import std.env.*
 import std.convert.*
 import std.collection.*
+import std.console.*
 
 // ── 可变计数器（绕过 lambda 不可捕获可变变量限制）──
 class Counter {
@@ -170,6 +171,15 @@ main(): Int64 {
     // 无参数或 --help
     if (args.size <= 1 || args[1] == "-h" || args[1] == "--help") {
         showHelp()
+        // 双击运行时（无参数），等待用户按键再退出，避免窗口闪退
+        if (args.size <= 1) {
+            println("")
+            println("按回车键退出...")
+            try {
+                let _ = Console.stdIn.readln()
+            } catch (_) {
+            }
+        }
         return 0
     }
 
