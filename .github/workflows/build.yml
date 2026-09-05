@@ -113,6 +113,7 @@ jobs:
           cp ${{ matrix.artifact_name }} win_package/everything-cj.exe
           cp "$DLL_DIR/libcangjie-runtime.dll" win_package/
           cp "$DLL_DIR/libboundscheck.dll" win_package/
+          cp "$DLL_DIR/libcangjie-trace.dll" win_package/
 
           echo "=== 包内容 ==="
           ls -lh win_package/
@@ -219,7 +220,7 @@ jobs:
 
             ### Windows 用户注意
             **请下载 `.zip` 包**，解压后双击 `everything-cj.exe` 即可运行。
-            zip 包内已包含运行时 DLL（libcangjie-runtime.dll、libboundscheck.dll）。
+            zip 包内已包含 3 个运行时 DLL（libcangjie-runtime.dll、libboundscheck.dll、libcangjie-trace.dll），解压即用。
             单独的 `.exe` 文件需要自行配置 Cangjie 运行时环境。
 
             ### 构建环境
